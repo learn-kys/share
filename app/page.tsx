@@ -15,7 +15,10 @@ export default function Home() {
 
   useEffect(() => {
     // Warm-up request to avoid cold start delays
-    fetch(API_ENDPOINTS.UPLOAD_BATCH, { method: "OPTIONS" }).catch(() => {});
+    fetch(API_ENDPOINTS.UPLOAD_BATCH, {
+      method: "POST",
+      body: new FormData()
+    }).catch(() => {});
   }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
