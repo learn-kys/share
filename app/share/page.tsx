@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 // @ts-ignore
 import QRCode from "qrcode";
 import {
@@ -39,12 +38,11 @@ export default function SharePage() {
   const [uploadData, setUploadData] = useState<UploadData | null>(null);
   const [qrCodes, setQrCodes] = useState<Record<string, string>>({});
   const [codes, setCodes] = useState<Record<string, string>>({});
-  const router = useRouter();
 
   useEffect(() => {
     const data = sessionStorage.getItem("uploadData");
     if (!data) {
-      router.push("/");
+      window.location.href = "/";
       return;
     }
 
@@ -74,7 +72,7 @@ export default function SharePage() {
     };
 
     generateCodesAndQRs();
-  }, [router]);
+  }, []);
 
   if (!uploadData) {
     return (
@@ -115,7 +113,7 @@ export default function SharePage() {
                         <img
                           src={qrCodes[file.id]}
                           alt={`QR code for ${file.name}`}
-                          className="w-24 h-24 sm:w-32 sm:h-32 border-2 border-border rounded"
+                          className="w-40 h-40 sm:w-48 sm:h-48 border-2 border-border rounded"
                         />
                       )}
                       <p className="text-xs sm:text-sm text-muted-foreground text-center">
@@ -215,14 +213,18 @@ export default function SharePage() {
         <div className="mt-8">
           <Button
             variant="secondary"
-            onClick={() => {
-              sessionStorage.removeItem("uploadData");
-              router.push("/");
-            }}
+            asChild
             className="text-sm sm:text-base"
             size="lg"
           >
-            Upload More Files
+            <a
+              href="/"
+              onClick={() => {
+                sessionStorage.removeItem("uploadData");
+              }}
+            >
+              Upload More Files
+            </a>
           </Button>
         </div>
       </div>
