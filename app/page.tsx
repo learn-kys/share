@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { API_ENDPOINTS } from "@/lib/config";
 
+const MAX_FILE_SIZE_MB = 20;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -13,6 +16,18 @@ export default function Home() {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.currentTarget.files;
     if (!files || files.length === 0) return;
+
+    const oversizedFile = Array.from(files).find(
+      (file) => file.size > MAX_FILE_SIZE_BYTES,
+    );
+
+    if (oversizedFile) {
+      alert(
+        `"${oversizedFile.name}" is larger than ${MAX_FILE_SIZE_MB} MB. Please choose a smaller file.`,
+      );
+      e.currentTarget.value = "";
+      return;
+    }
 
     setIsLoading(true);
     setUploadProgress(0);
@@ -72,9 +87,10 @@ export default function Home() {
             className="font-semibold w-full text-base sm:text-lg"
             disabled={isLoading}
           >
-            <label className="cursor-pointer">
+            <label htmlFor="file-upload" className="cursor-pointer">
               {isLoading ? "Uploading..." : "Upload File"}
               <Input
+                id="file-upload"
                 type="file"
                 multiple
                 onChange={handleFileSelect}
