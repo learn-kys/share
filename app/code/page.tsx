@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const CODE_STORAGE_PREFIX = "opendrop_code_";
+import { getShareCodeKey, SHARE_CODE_LENGTH } from "@/lib/share-code";
 
 export default function CodePage() {
   const [code, setCode] = useState("");
@@ -12,10 +11,12 @@ export default function CodePage() {
   const [loading, setLoading] = useState(false);
 
   const handleRetrieve = () => {
+    if (code.length !== SHARE_CODE_LENGTH) return;
+
     setError(null);
     setLoading(true);
 
-    const stored = localStorage.getItem(CODE_STORAGE_PREFIX + code);
+    const stored = localStorage.getItem(getShareCodeKey(code));
     if (!stored) {
       setError("Code not found or invalid");
       setLoading(false);
@@ -26,7 +27,7 @@ export default function CodePage() {
 
     // Check if code has expired
     if (Date.now() > entry.expiresAt) {
-      localStorage.removeItem(CODE_STORAGE_PREFIX + code);
+      localStorage.removeItem(getShareCodeKey(code));
       setError("Code has expired");
       setLoading(false);
       return;
@@ -46,11 +47,16 @@ export default function CodePage() {
         <div className="w-full">
           <Input
             type="text"
+            inputMode="numeric"
             value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            onKeyPress={(e) => e.key === "Enter" && handleRetrieve()}
-            placeholder="Enter 6-digit code"
-            maxLength={6}
+            onChange={(e) =>
+              setCode(
+                e.target.value.replace(/\D/g, "").slice(0, SHARE_CODE_LENGTH),
+              )
+            }
+            onKeyDown={(e) => e.key === "Enter" && handleRetrieve()}
+            placeholder="Enter 4-digit code"
+            maxLength={SHARE_CODE_LENGTH}
             size="2xl"
             className="text-center font-mono text-lg sm:text-2xl"
           />
@@ -59,7 +65,7 @@ export default function CodePage() {
         <Button
           onClick={handleRetrieve}
           size="2xl"
-          disabled={code.length !== 6 || loading}
+          disabled={code.length !== SHARE_CODE_LENGTH || loading}
           className="w-full font-semibold text-base sm:text-lg"
         >
           {loading ? "Retrieving..." : "Retrieve File"}

@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 // @ts-ignore
 import QRCode from "qrcode";
+import { useEffect, useState } from "react";
 import {
   Accordion,
+  AccordionContent,
   AccordionItem,
   AccordionTrigger,
-  AccordionContent,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { generateShareCode, getShareCodeKey } from "@/lib/share-code";
 
 interface UploadData {
   files: Array<{ id: string; name: string; size: number; url: string }>;
@@ -17,20 +18,27 @@ interface UploadData {
   expiresIn: string;
 }
 
-const CODE_STORAGE_PREFIX = "opendrop_code_";
 const CODE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours (matches server link expiry)
+const MAX_CODE_GENERATION_ATTEMPTS = 20;
 
-function generateCode(): string {
-  return Math.random().toString().slice(2, 8);
-}
-
-function storeCode(fileId: string, url: string): string {
-  const code = generateCode();
+function storeCode(url: string): string {
   const entry = {
     url,
     expiresAt: Date.now() + CODE_EXPIRY_MS,
   };
-  localStorage.setItem(CODE_STORAGE_PREFIX + code, JSON.stringify(entry));
+
+  for (let attempt = 0; attempt < MAX_CODE_GENERATION_ATTEMPTS; attempt += 1) {
+    const code = generateShareCode();
+    const storageKey = getShareCodeKey(code);
+
+    if (!localStorage.getItem(storageKey)) {
+      localStorage.setItem(storageKey, JSON.stringify(entry));
+      return code;
+    }
+  }
+
+  const code = generateShareCode();
+  localStorage.setItem(getShareCodeKey(code), JSON.stringify(entry));
   return code;
 }
 
@@ -56,7 +64,7 @@ export default function SharePage() {
 
       for (const file of parsed.files) {
         // Generate and store code
-        const code = storeCode(file.id, file.url);
+        const code = storeCode(file.url);
         newCodes[file.id] = code;
 
         // Generate QR code
