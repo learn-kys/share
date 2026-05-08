@@ -50,6 +50,7 @@ export default function Home() {
             </div>
           )}
 
+          {/*
           <Button
             asChild
             size="xl"
@@ -59,6 +60,7 @@ export default function Home() {
           >
             <a href="/code">Get file by code</a>
           </Button>
+          */}
         </div>
 
         {error && (

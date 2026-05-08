@@ -198,7 +198,7 @@ export default function SharePage() {
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* Code Accordion - Closed by Default */}
+                {/*
                 <AccordionItem
                   className="mt-4 sm:mt-8"
                   value={`code-${file.id}`}
@@ -242,6 +242,7 @@ export default function SharePage() {
                     </div>
                   </AccordionContent>
                 </AccordionItem>
+                */}
 
                 {/* Copy URL Accordion - Closed by Default */}
                 <AccordionItem
