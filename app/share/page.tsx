@@ -18,8 +18,14 @@ interface UploadData {
   expiresIn: string;
 }
 
+interface ShareCodeSessionEntry {
+  uploadSignature: string;
+  codes: Record<string, string>;
+}
+
 const CODE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours (matches server link expiry)
 const MAX_CODE_GENERATION_ATTEMPTS = 20;
+const SHARE_CODES_SESSION_KEY = "shareCodes";
 
 function storeCode(url: string): string {
   const entry = {
@@ -42,6 +48,52 @@ function storeCode(url: string): string {
   return code;
 }
 
+function createUploadSignature(data: UploadData): string {
+  return data.files.map((file) => `${file.id}:${file.url}`).join("|");
+}
+
+function loadSessionCodes(data: UploadData): Record<string, string> {
+  const raw = sessionStorage.getItem(SHARE_CODES_SESSION_KEY);
+  if (!raw) return {};
+
+  try {
+    const parsed = JSON.parse(raw) as ShareCodeSessionEntry;
+    if (parsed.uploadSignature !== createUploadSignature(data)) return {};
+    return parsed.codes;
+  } catch (err) {
+    console.error("Invalid share code session cache:", err);
+    sessionStorage.removeItem(SHARE_CODES_SESSION_KEY);
+    return {};
+  }
+}
+
+function saveSessionCodes(data: UploadData, codes: Record<string, string>) {
+  const entry: ShareCodeSessionEntry = {
+    uploadSignature: createUploadSignature(data),
+    codes,
+  };
+  sessionStorage.setItem(SHARE_CODES_SESSION_KEY, JSON.stringify(entry));
+}
+
+function isValidStoredCode(code: string, expectedUrl: string): boolean {
+  const raw = localStorage.getItem(getShareCodeKey(code));
+  if (!raw) return false;
+
+  try {
+    const parsed = JSON.parse(raw) as { url?: string; expiresAt?: number };
+    if (typeof parsed.expiresAt !== "number" || Date.now() > parsed.expiresAt) {
+      localStorage.removeItem(getShareCodeKey(code));
+      return false;
+    }
+
+    return parsed.url === expectedUrl;
+  } catch (err) {
+    console.error("Invalid share code local cache:", err);
+    localStorage.removeItem(getShareCodeKey(code));
+    return false;
+  }
+}
+
 export default function SharePage() {
   const [uploadData, setUploadData] = useState<UploadData | null>(null);
   const [qrCodes, setQrCodes] = useState<Record<string, string>>({});
@@ -54,17 +106,31 @@ export default function SharePage() {
       return;
     }
 
-    const parsed = JSON.parse(data) as UploadData;
+    let parsed: UploadData;
+    try {
+      parsed = JSON.parse(data) as UploadData;
+    } catch (err) {
+      console.error("Invalid uploadData in session storage:", err);
+      sessionStorage.removeItem("uploadData");
+      window.location.href = "/";
+      return;
+    }
+
     setUploadData(parsed);
 
-    // Generate codes and QR codes for all files
+    // Reuse existing codes from session storage when possible, then fill missing ones.
     const generateCodesAndQRs = async () => {
       const newCodes: Record<string, string> = {};
       const qrCodeMap: Record<string, string> = {};
+      const cachedCodes = loadSessionCodes(parsed);
 
       for (const file of parsed.files) {
-        // Generate and store code
-        const code = storeCode(file.url);
+        const cachedCode = cachedCodes[file.id];
+        const code =
+          cachedCode && isValidStoredCode(cachedCode, file.url)
+            ? cachedCode
+            : storeCode(file.url);
+
         newCodes[file.id] = code;
 
         // Generate QR code
@@ -77,6 +143,7 @@ export default function SharePage() {
 
       setCodes(newCodes);
       setQrCodes(qrCodeMap);
+      saveSessionCodes(parsed, newCodes);
     };
 
     generateCodesAndQRs();
@@ -229,6 +296,7 @@ export default function SharePage() {
               href="/"
               onClick={() => {
                 sessionStorage.removeItem("uploadData");
+                sessionStorage.removeItem(SHARE_CODES_SESSION_KEY);
               }}
             >
               Upload More Files
