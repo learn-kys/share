@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-// @ts-expect-error
 import QRCode from "qrcode";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";

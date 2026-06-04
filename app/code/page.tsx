@@ -1,13 +1,13 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { API_ENDPOINTS } from "@/lib/config";
 import { SHARE_CODE_LENGTH } from "@/lib/share-code";
 
-export default function CodePage() {
+function CodePageInner() {
   const searchParams = useSearchParams();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -144,5 +144,13 @@ export default function CodePage() {
         </a>
       </div>
     </div>
+  );
+}
+
+export default function CodePage() {
+  return (
+    <Suspense>
+      <CodePageInner />
+    </Suspense>
   );
 }
