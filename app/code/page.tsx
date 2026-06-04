@@ -13,54 +13,79 @@ function CodePageInner() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resolvedText, setResolvedText] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const autoRunRef = useRef(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const retrieveByCode = useCallback(async (targetCode: string) => {
-    if (targetCode.length !== SHARE_CODE_LENGTH) return;
+  const copyToClipboard = useCallback((text: string) => {
+    navigator.clipboard.writeText(text).catch(() => {
+      // fallback for older browsers
+      const el = document.createElement("textarea");
+      el.value = text;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    });
 
-    setError(null);
-    setResolvedText(null);
-    setLoading(true);
-
-    try {
-      const response = await fetch(
-        `${API_ENDPOINTS.SHARE_CODE_LOOKUP}/${targetCode}`,
-      );
-
-      if (!response.ok) {
-        if (response.status === 410) {
-          setError("Code has expired");
-          return;
-        }
-        if (response.status === 404) {
-          setError("Code not found or invalid");
-          return;
-        }
-        setError("Unable to retrieve share");
-        return;
-      }
-
-      const payload = (await response.json()) as
-        | { type: "file"; downloadUrl?: string }
-        | { type: "text"; text?: string };
-
-      if (payload.type === "file" && payload.downloadUrl) {
-        window.location.href = payload.downloadUrl;
-        return;
-      }
-
-      if (payload.type === "text" && typeof payload.text === "string") {
-        setResolvedText(payload.text);
-        return;
-      }
-
-      setError("Share data was incomplete");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to retrieve share");
-    } finally {
-      setLoading(false);
-    }
+    setCopied(true);
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(() => setCopied(false), 2500);
   }, []);
+
+  const retrieveByCode = useCallback(
+    async (targetCode: string) => {
+      if (targetCode.length !== SHARE_CODE_LENGTH) return;
+
+      setError(null);
+      setResolvedText(null);
+      setCopied(false);
+      setLoading(true);
+
+      try {
+        const response = await fetch(
+          `${API_ENDPOINTS.SHARE_CODE_LOOKUP}/${targetCode}`,
+        );
+
+        if (!response.ok) {
+          if (response.status === 410) {
+            setError("Code has expired");
+            return;
+          }
+          if (response.status === 404) {
+            setError("Code not found or invalid");
+            return;
+          }
+          setError("Unable to retrieve share");
+          return;
+        }
+
+        const payload = (await response.json()) as
+          | { type: "file"; downloadUrl?: string }
+          | { type: "text"; text?: string };
+
+        if (payload.type === "file" && payload.downloadUrl) {
+          window.location.href = payload.downloadUrl;
+          return;
+        }
+
+        if (payload.type === "text" && typeof payload.text === "string") {
+          setResolvedText(payload.text);
+          copyToClipboard(payload.text);
+          return;
+        }
+
+        setError("Share data was incomplete");
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Unable to retrieve share",
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [copyToClipboard],
+  );
 
   const handleRetrieve = () => {
     if (code.length !== SHARE_CODE_LENGTH) return;
@@ -76,6 +101,13 @@ function CodePageInner() {
     setCode(normalized);
     void retrieveByCode(normalized);
   }, [retrieveByCode, searchParams]);
+
+  // cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4 sm:p-6 md:p-8">
@@ -111,6 +143,25 @@ function CodePageInner() {
           {loading ? "Retrieving..." : "Retrieve"}
         </Button>
 
+        {/* Copied banner — shown right after successful text retrieval */}
+        {copied && (
+          <div className="w-full flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-green-600 dark:text-green-400 text-sm font-medium">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="size-4 shrink-0"
+            >
+              <path
+                fillRule="evenodd"
+                d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Text copied to clipboard!
+          </div>
+        )}
+
         {error && (
           <p className="text-destructive text-xs sm:text-sm text-center">
             {error}
@@ -123,15 +174,12 @@ function CodePageInner() {
               {resolvedText}
             </div>
             <Button
-              onClick={() => {
-                navigator.clipboard.writeText(resolvedText);
-                alert("Text copied!");
-              }}
+              onClick={() => copyToClipboard(resolvedText)}
               size="sm"
               variant="secondary"
               className="w-full"
             >
-              Copy text
+              {copied ? "Copied!" : "Copy again"}
             </Button>
           </div>
         )}
