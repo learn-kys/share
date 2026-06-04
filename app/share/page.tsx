@@ -10,7 +10,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { generateShareCode, getShareCodeKey } from "@/lib/share-code";
+import { API_ENDPOINTS } from "@/lib/config";
 
 interface UploadData {
   files: Array<{ id: string; name: string; size: number; url: string }>;
@@ -18,86 +18,13 @@ interface UploadData {
   expiresIn: string;
 }
 
-interface ShareCodeSessionEntry {
-  uploadSignature: string;
-  codes: Record<string, string>;
-}
-
-const CODE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours (matches server link expiry)
-const MAX_CODE_GENERATION_ATTEMPTS = 20;
-const SHARE_CODES_SESSION_KEY = "shareCodes";
-
-function storeCode(url: string): string {
-  const entry = {
-    url,
-    expiresAt: Date.now() + CODE_EXPIRY_MS,
-  };
-
-  for (let attempt = 0; attempt < MAX_CODE_GENERATION_ATTEMPTS; attempt += 1) {
-    const code = generateShareCode();
-    const storageKey = getShareCodeKey(code);
-
-    if (!localStorage.getItem(storageKey)) {
-      localStorage.setItem(storageKey, JSON.stringify(entry));
-      return code;
-    }
-  }
-
-  const code = generateShareCode();
-  localStorage.setItem(getShareCodeKey(code), JSON.stringify(entry));
-  return code;
-}
-
-function createUploadSignature(data: UploadData): string {
-  return data.files.map((file) => `${file.id}:${file.url}`).join("|");
-}
-
-function loadSessionCodes(data: UploadData): Record<string, string> {
-  const raw = sessionStorage.getItem(SHARE_CODES_SESSION_KEY);
-  if (!raw) return {};
-
-  try {
-    const parsed = JSON.parse(raw) as ShareCodeSessionEntry;
-    if (parsed.uploadSignature !== createUploadSignature(data)) return {};
-    return parsed.codes;
-  } catch (err) {
-    console.error("Invalid share code session cache:", err);
-    sessionStorage.removeItem(SHARE_CODES_SESSION_KEY);
-    return {};
-  }
-}
-
-function saveSessionCodes(data: UploadData, codes: Record<string, string>) {
-  const entry: ShareCodeSessionEntry = {
-    uploadSignature: createUploadSignature(data),
-    codes,
-  };
-  sessionStorage.setItem(SHARE_CODES_SESSION_KEY, JSON.stringify(entry));
-}
-
-function isValidStoredCode(code: string, expectedUrl: string): boolean {
-  const raw = localStorage.getItem(getShareCodeKey(code));
-  if (!raw) return false;
-
-  try {
-    const parsed = JSON.parse(raw) as { url?: string; expiresAt?: number };
-    if (typeof parsed.expiresAt !== "number" || Date.now() > parsed.expiresAt) {
-      localStorage.removeItem(getShareCodeKey(code));
-      return false;
-    }
-
-    return parsed.url === expectedUrl;
-  } catch (err) {
-    console.error("Invalid share code local cache:", err);
-    localStorage.removeItem(getShareCodeKey(code));
-    return false;
-  }
-}
+const SHARE_CODE_PAGE = "/code";
 
 export default function SharePage() {
   const [uploadData, setUploadData] = useState<UploadData | null>(null);
   const [qrCodes, setQrCodes] = useState<Record<string, string>>({});
   const [codes, setCodes] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const data = sessionStorage.getItem("uploadData");
@@ -118,35 +45,50 @@ export default function SharePage() {
 
     setUploadData(parsed);
 
-    // Reuse existing codes from session storage when possible, then fill missing ones.
     const generateCodesAndQRs = async () => {
       const newCodes: Record<string, string> = {};
       const qrCodeMap: Record<string, string> = {};
-      const cachedCodes = loadSessionCodes(parsed);
+      let hadError = false;
 
-      for (const file of parsed.files) {
-        const cachedCode = cachedCodes[file.id];
-        const code =
-          cachedCode && isValidStoredCode(cachedCode, file.url)
-            ? cachedCode
-            : storeCode(file.url);
+      await Promise.all(
+        parsed.files.map(async (file) => {
+          try {
+            const response = await fetch(API_ENDPOINTS.SHARE_CODE_FILE, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ fileId: file.id }),
+            });
 
-        newCodes[file.id] = code;
+            if (!response.ok) {
+              throw new Error("Unable to generate share code");
+            }
 
-        // Generate QR code
-        try {
-          qrCodeMap[file.id] = await QRCode.toDataURL(file.url);
-        } catch (err) {
-          console.error("QR generation failed:", err);
-        }
-      }
+            const payload = (await response.json()) as { code?: string };
+            if (!payload.code) {
+              throw new Error("Share code response missing code");
+            }
+
+            newCodes[file.id] = payload.code;
+
+            const shareUrl = `${window.location.origin}${SHARE_CODE_PAGE}?code=${payload.code}`;
+            qrCodeMap[file.id] = await QRCode.toDataURL(shareUrl);
+          } catch (err) {
+            hadError = true;
+            console.error("Share code generation failed:", err);
+          }
+        }),
+      );
 
       setCodes(newCodes);
       setQrCodes(qrCodeMap);
-      saveSessionCodes(parsed, newCodes);
+      setError(
+        hadError
+          ? "Some share codes could not be generated. Try again later."
+          : null,
+      );
     };
 
-    generateCodesAndQRs();
+    void generateCodesAndQRs();
   }, []);
 
   if (!uploadData) {
@@ -163,6 +105,10 @@ export default function SharePage() {
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-6 sm:mb-8">
           Share it via:
         </h1>
+
+        {error && (
+          <p className="text-destructive text-xs sm:text-sm mb-4">{error}</p>
+        )}
 
         <div className="space-y-4 sm:space-y-6">
           {uploadData.files.map((file) => (
@@ -192,13 +138,12 @@ export default function SharePage() {
                         />
                       )}
                       <p className="text-xs sm:text-sm text-muted-foreground text-center">
-                        Scan this QR code to download the file directly
+                        Scan this QR code to open the share code page
                       </p>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
 
-                {/*
                 <AccordionItem
                   className="mt-4 sm:mt-8"
                   value={`code-${file.id}`}
@@ -230,19 +175,23 @@ export default function SharePage() {
                           <p className="text-xs sm:text-sm text-muted-foreground">
                             Enter this code at{" "}
                             <a
-                              href="/"
+                              href={SHARE_CODE_PAGE}
                               className="underline hover:text-foreground"
                             >
-                              home page
+                              the code page
                             </a>{" "}
-                            on other device to download the file.
+                            on another device to download the file.
                           </p>
                         </>
+                      )}
+                      {!codes[file.id] && (
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          Generating share code...
+                        </p>
                       )}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
-                */}
 
                 {/* Copy URL Accordion - Closed by Default */}
                 <AccordionItem
@@ -297,7 +246,6 @@ export default function SharePage() {
               href="/"
               onClick={() => {
                 sessionStorage.removeItem("uploadData");
-                sessionStorage.removeItem(SHARE_CODES_SESSION_KEY);
               }}
             >
               Upload More Files

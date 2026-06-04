@@ -50,7 +50,6 @@ export default function Home() {
             </div>
           )}
 
-          {/*
           <Button
             asChild
             size="xl"
@@ -58,9 +57,18 @@ export default function Home() {
             className="font-semibold w-full text-base sm:text-lg"
             disabled={isLoading}
           >
-            <a href="/code">Get file by code</a>
+            <a href="/code">Get by code</a>
           </Button>
-          */}
+
+          <Button
+            asChild
+            size="xl"
+            variant="link"
+            className="font-semibold w-full text-base sm:text-lg"
+            disabled={isLoading}
+          >
+            <a href="/text">Share text</a>
+          </Button>
         </div>
 
         {error && (
