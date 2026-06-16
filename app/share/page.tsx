@@ -130,12 +130,14 @@ export default function SharePage() {
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="flex flex-col items-center gap-4 py-4">
-                      {qrCodes[file.id] && (
+                      {qrCodes[file.id] ? (
                         <img
                           src={qrCodes[file.id]}
                           alt={`QR code for ${file.name}`}
-                          className="w-40 h-40 sm:w-48 sm:h-48 border-2 border-border rounded"
+                          className="w-40 h-40 sm:w-48 sm:h-48 border-2 border-border rounded bg-white"
                         />
+                      ) : (
+                        <div className="w-40 h-40 sm:w-48 sm:h-48 border-2 border-border rounded animate-pulse bg-muted" />
                       )}
                       <p className="text-xs sm:text-sm text-muted-foreground text-center">
                         Scan this QR code to open the share code page

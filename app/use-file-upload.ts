@@ -120,13 +120,11 @@ export function useFileUpload() {
     [startOptimisticProgress],
   );
 
-  const handleFileSelect = useCallback(
-    async (e: ChangeEvent<HTMLInputElement>) => {
-      const files = e.currentTarget.files;
+  const handleFiles = useCallback(
+    async (files: File[]) => {
       if (!files || files.length === 0) return;
 
-      const selectedFiles = Array.from(files);
-      const oversizedFile = selectedFiles.find(
+      const oversizedFile = files.find(
         (file) => file.size > MAX_FILE_SIZE_BYTES,
       );
 
@@ -134,7 +132,6 @@ export function useFileUpload() {
         alert(
           `"${oversizedFile.name}" is larger than ${MAX_FILE_SIZE_MB} MB. Please choose a smaller file.`,
         );
-        e.currentTarget.value = "";
         return;
       }
 
@@ -144,7 +141,7 @@ export function useFileUpload() {
       startOptimisticProgress(UPLOAD_PROGRESS_CAP);
 
       try {
-        const data = await uploadFiles(selectedFiles);
+        const data = await uploadFiles(files);
 
         stopOptimisticProgress();
         setUploadProgress(100);
@@ -155,14 +152,26 @@ export function useFileUpload() {
         setError(err instanceof Error ? err.message : "Upload failed");
         setIsLoading(false);
         setUploadProgress(0);
-        e.currentTarget.value = "";
       }
     },
     [startOptimisticProgress, stopOptimisticProgress, uploadFiles],
   );
 
+  const handleFileSelect = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const files = e.currentTarget.files;
+      if (!files || files.length === 0) return;
+
+      const selectedFiles = Array.from(files);
+      await handleFiles(selectedFiles);
+      e.currentTarget.value = "";
+    },
+    [handleFiles],
+  );
+
   return {
     error,
+    handleFiles,
     handleFileSelect,
     isLoading,
     uploadProgress: Math.round(uploadProgress),
