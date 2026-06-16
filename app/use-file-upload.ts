@@ -11,9 +11,7 @@ const PROCESSING_PROGRESS_CAP = 98;
 
 const getOptimisticStep = (progress: number) => {
   const base =
-    progress < 35 ? 3 :
-    progress < 70 ? 1.5 :
-    progress < 90 ? 0.75 : 0.25;
+    progress < 35 ? 3 : progress < 70 ? 1.5 : progress < 90 ? 0.75 : 0.25;
 
   return base * (0.3 + Math.random() * 1.5); // ±50–150% of base
 };
@@ -27,26 +25,29 @@ export function useFileUpload() {
   const stopOptimisticProgress = useCallback(() => {
     if (optimisticTimerRef.current === null) return;
 
-    window.clearTimeout(optimisticTimerRef.current); 
+    window.clearTimeout(optimisticTimerRef.current);
     optimisticTimerRef.current = null;
   }, []);
 
-  const startOptimisticProgress = useCallback((cap: number) => {
-  stopOptimisticProgress();
+  const startOptimisticProgress = useCallback(
+    (cap: number) => {
+      stopOptimisticProgress();
 
-  const scheduleNext = () => {
-    const delay = 150 + Math.random() * 350; // 150–500ms
-    optimisticTimerRef.current = window.setTimeout(() => {
-      setUploadProgress((current) => {
-        if (current >= cap) return current;
-        return Math.min(cap, current + getOptimisticStep(current));
-      });
+      const scheduleNext = () => {
+        const delay = 150 + Math.random() * 350; // 150–500ms
+        optimisticTimerRef.current = window.setTimeout(() => {
+          setUploadProgress((current) => {
+            if (current >= cap) return current;
+            return Math.min(cap, current + getOptimisticStep(current));
+          });
+          scheduleNext();
+        }, delay);
+      };
+
       scheduleNext();
-    }, delay);
-  };
-
-  scheduleNext();
-}, [stopOptimisticProgress]);
+    },
+    [stopOptimisticProgress],
+  );
 
   useEffect(() => {
     const formData = new FormData();

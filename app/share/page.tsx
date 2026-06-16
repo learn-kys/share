@@ -1,6 +1,5 @@
 "use client";
 
-// @ts-ignore
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import {

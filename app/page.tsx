@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, DragEvent } from "react";
+import { type DragEvent, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFileUpload } from "./use-file-upload";
@@ -35,7 +35,7 @@ export default function Home() {
         await handleFiles(files);
       }
     },
-    [handleFiles, isLoading]
+    [handleFiles, isLoading],
   );
 
   useEffect(() => {
@@ -54,7 +54,9 @@ export default function Home() {
   return (
     <div
       className={`flex items-center justify-center min-h-screen p-4 sm:p-6 md:p-8 transition-colors ${
-        isDragging ? "bg-muted/50 border-2 border-dashed border-primary" : "bg-background"
+        isDragging
+          ? "bg-muted/50 border-2 border-dashed border-primary"
+          : "bg-background"
       }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -85,7 +87,7 @@ export default function Home() {
               />
             </label>
           </Button>
-          
+
           {!isLoading && (
             <p className="text-center text-xs text-muted-foreground mt-[-4px] mb-2 pointer-events-none">
               or drag & drop / paste anywhere

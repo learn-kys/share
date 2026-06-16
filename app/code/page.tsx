@@ -1,11 +1,13 @@
 "use client";
 
+import hljs from "highlight.js";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, Suspense } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { API_ENDPOINTS } from "@/lib/config";
 import { SHARE_CODE_LENGTH } from "@/lib/share-code";
+import "highlight.js/styles/github-dark.css";
 
 function CodePageInner() {
   const searchParams = useSearchParams();
@@ -13,6 +15,8 @@ function CodePageInner() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resolvedText, setResolvedText] = useState<string | null>(null);
+  const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const autoRunRef = useRef(false);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -39,6 +43,8 @@ function CodePageInner() {
 
       setError(null);
       setResolvedText(null);
+      setHighlightedHtml(null);
+      setDetectedLanguage(null);
       setCopied(false);
       setLoading(true);
 
@@ -70,8 +76,22 @@ function CodePageInner() {
         }
 
         if (payload.type === "text" && typeof payload.text === "string") {
-          setResolvedText(payload.text);
-          copyToClipboard(payload.text);
+          const text = payload.text;
+          setResolvedText(text);
+          copyToClipboard(text);
+
+          // Attempt to detect code
+          const result = hljs.highlightAuto(text);
+          // If the relevance score is decent and it's not detected as simple text/plaintext
+          if (
+            result.language &&
+            result.language !== "plaintext" &&
+            result.relevance > 5
+          ) {
+            setHighlightedHtml(result.value);
+            setDetectedLanguage(result.language);
+          }
+
           return;
         }
 
@@ -111,12 +131,12 @@ function CodePageInner() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4 sm:p-6 md:p-8">
-      <div className="flex flex-col items-center gap-6 w-full max-w-sm">
+      <div className="flex flex-col items-center gap-6 w-full max-w-sm md:max-w-3xl">
         <h1 className="text-2xl sm:text-3xl font-bold text-center leading-tight">
           Enter Share Code
         </h1>
 
-        <div className="w-full">
+        <div className="w-full max-w-sm mx-auto">
           <Input
             type="text"
             inputMode="numeric"
@@ -134,24 +154,29 @@ function CodePageInner() {
           />
         </div>
 
-        <Button
-          onClick={handleRetrieve}
-          size="2xl"
-          disabled={code.length !== SHARE_CODE_LENGTH || loading}
-          className="w-full font-semibold text-base sm:text-lg"
-        >
-          {loading ? "Retrieving..." : "Retrieve"}
-        </Button>
+        <div className="w-full max-w-sm mx-auto">
+          <Button
+            onClick={handleRetrieve}
+            size="2xl"
+            disabled={code.length !== SHARE_CODE_LENGTH || loading}
+            className="w-full font-semibold text-base sm:text-lg"
+          >
+            {loading ? "Retrieving..." : "Retrieve"}
+          </Button>
+        </div>
 
         {/* Copied banner — shown right after successful text retrieval */}
         {copied && (
-          <div className="w-full flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-green-600 dark:text-green-400 text-sm font-medium">
+          <div className="w-full max-w-sm mx-auto flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-green-600 dark:text-green-400 text-sm font-medium">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 20 20"
               fill="currentColor"
               className="size-4 shrink-0"
+              role="img"
+              aria-label="Success"
             >
+              <title>Success</title>
               <path
                 fillRule="evenodd"
                 d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
@@ -170,17 +195,38 @@ function CodePageInner() {
 
         {resolvedText && (
           <div className="w-full border rounded-lg border-border p-4 space-y-3">
-            <div className="bg-muted p-3 rounded-md border border-border text-sm sm:text-base whitespace-pre-wrap break-words">
-              {resolvedText}
+            {detectedLanguage ? (
+              <div className="relative rounded-md overflow-hidden border border-border">
+                <div className="flex items-center justify-between px-4 py-2 bg-muted/80 text-xs font-mono text-muted-foreground border-b border-border">
+                  <span>{detectedLanguage}</span>
+                </div>
+                <div className="p-4 bg-[#0d1117] overflow-x-auto text-sm sm:text-base">
+                  <pre>
+                    <code
+                      className={`hljs language-${detectedLanguage}`}
+                      // biome-ignore lint/security/noDangerouslySetInnerHtml: output from highlight.js is safe
+                      dangerouslySetInnerHTML={{
+                        __html: highlightedHtml || "",
+                      }}
+                    />
+                  </pre>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-muted p-3 rounded-md border border-border text-sm sm:text-base whitespace-pre-wrap break-words">
+                {resolvedText}
+              </div>
+            )}
+            <div className="w-full max-w-sm mx-auto">
+              <Button
+                onClick={() => copyToClipboard(resolvedText)}
+                size="sm"
+                variant="secondary"
+                className="w-full"
+              >
+                {copied ? "Copied!" : "Copy again"}
+              </Button>
             </div>
-            <Button
-              onClick={() => copyToClipboard(resolvedText)}
-              size="sm"
-              variant="secondary"
-              className="w-full"
-            >
-              {copied ? "Copied!" : "Copy again"}
-            </Button>
           </div>
         )}
 
