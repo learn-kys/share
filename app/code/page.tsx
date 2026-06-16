@@ -138,6 +138,7 @@ function CodePageInner() {
 
         <div className="w-full max-w-sm mx-auto">
           <Input
+            autoFocus
             type="text"
             inputMode="numeric"
             value={code}
