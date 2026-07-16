@@ -1,6 +1,6 @@
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "https://opendrop-server-1054018425952.us-central1.run.app";
+  "https://aliceblue-rook-124259.hostingersite.com";
 
 export const API_ENDPOINTS = {
   UPLOAD_BATCH: `${API_BASE_URL}/upload-batch`,
