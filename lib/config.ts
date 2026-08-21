@@ -9,4 +9,4 @@ export const API_ENDPOINTS = {
   SHARE_CODE_LOOKUP: `${API_BASE_URL}/share-code`,
 } as const;
 
-export const TEXT_SHARE_MAX_LENGTH = 10000;
+

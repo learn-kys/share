@@ -4,7 +4,7 @@ import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_ENDPOINTS } from "@/lib/config";
 
-const MAX_FILE_SIZE_MB = 20;
+const MAX_FILE_SIZE_MB = 500;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const UPLOAD_PROGRESS_CAP = 92;
 const PROCESSING_PROGRESS_CAP = 98;

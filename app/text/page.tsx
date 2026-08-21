@@ -4,7 +4,7 @@ import Image from "next/image";
 import QRCode from "qrcode";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { API_ENDPOINTS, TEXT_SHARE_MAX_LENGTH } from "@/lib/config";
+import { API_ENDPOINTS } from "@/lib/config";
 
 export default function TextSharePage() {
   const [text, setText] = useState("");
@@ -26,10 +26,7 @@ export default function TextSharePage() {
       setError("Enter some text to share.");
       return;
     }
-    if (text.length > TEXT_SHARE_MAX_LENGTH) {
-      setError(`Text must be ${TEXT_SHARE_MAX_LENGTH} characters or fewer.`);
-      return;
-    }
+
 
     setIsLoading(true);
     setError(null);
@@ -82,13 +79,12 @@ export default function TextSharePage() {
             }}
             placeholder="Type or paste the text you want to share..."
             className="w-full min-h-[160px] rounded-none border border-input bg-transparent px-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50"
-            maxLength={TEXT_SHARE_MAX_LENGTH}
             disabled={isLoading || Boolean(shareCode)}
           />
 
           <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
             <span>
-              {text.length}/{TEXT_SHARE_MAX_LENGTH}
+              {text.length.toLocaleString()} characters
             </span>
             {shareCode && (
               <button
@@ -111,7 +107,6 @@ export default function TextSharePage() {
             disabled={
               isLoading ||
               !text.trim() ||
-              text.length > TEXT_SHARE_MAX_LENGTH ||
               Boolean(shareCode)
             }
             className="w-full font-semibold text-base sm:text-lg"
