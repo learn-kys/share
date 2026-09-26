@@ -126,6 +126,16 @@ export default function Home() {
           >
             <a href="/text">Share text</a>
           </Button>
+
+          <Button
+            asChild
+            size="xl"
+            variant="link"
+            className="font-semibold w-full text-base sm:text-lg"
+            disabled={isLoading}
+          >
+            <a href="/receive">Receive via QR</a>
+          </Button>
         </div>
 
         {error && (
