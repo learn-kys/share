@@ -345,9 +345,8 @@ function SendPageInner({ sessionId }: { sessionId: string }) {
 
   return (
     <div
-      className={`flex flex-col items-center justify-start min-h-screen bg-background px-4 py-8 sm:py-12 transition-colors ${
-        isDragging ? "bg-muted/40 border-2 border-dashed border-primary" : ""
-      }`}
+      className={`flex flex-col items-center justify-start min-h-screen bg-background px-4 py-8 sm:py-12 transition-colors ${isDragging ? "bg-muted/40 border-2 border-dashed border-primary" : ""
+        }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -422,11 +421,6 @@ function SendPageInner({ sessionId }: { sessionId: string }) {
               <span className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
                 {mode === "photos" ? "Tap to Choose Photos" : "Tap to Choose Files"}
               </span>
-              <p className="text-xs text-muted-foreground">
-                {mode === "photos"
-                  ? "Opens your camera roll / photo gallery directly"
-                  : "Opens your file manager to select any file or document"}
-              </p>
             </div>
           </button>
         )}

@@ -169,9 +169,6 @@ export default function ReceivePage() {
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">
             Receive Files &amp; Photos
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Generate a QR code for someone nearby to scan and send directly to your device
-          </p>
         </div>
 
         {/* Choice selector: What type of QR do you want? */}
@@ -183,31 +180,24 @@ export default function ReceivePage() {
             <button
               type="button"
               onClick={() => handleTypeChange("photos")}
-              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
-                receiveType === "photos"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all cursor-pointer ${receiveType === "photos"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
             >
               <span>📷</span> Photos Only
             </button>
             <button
               type="button"
               onClick={() => handleTypeChange("files")}
-              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
-                receiveType === "files"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all cursor-pointer ${receiveType === "files"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
             >
               <span>📁</span> Any Files
             </button>
           </div>
-          <p className="text-xs text-muted-foreground text-center">
-            {receiveType === "photos"
-              ? "Scanner will directly open their Photo Gallery (Instagram-style)"
-              : "Scanner will open their File Manager for any documents or files"}
-          </p>
         </div>
 
         {sessionState === "loading" && (
@@ -237,9 +227,6 @@ export default function ReceivePage() {
                   className="w-52 h-52 sm:w-64 sm:h-64 rounded-lg"
                 />
               </div>
-              <p className="text-sm text-muted-foreground text-center max-w-sm">
-                Scan with any phone camera — {receiveType === "photos" ? "opens photo gallery" : "opens file picker"} immediately.
-              </p>
             </div>
 
             {/* Received files list */}
