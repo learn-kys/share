@@ -15,6 +15,7 @@ interface ReceivedFile {
 }
 
 type SessionState = "loading" | "ready" | "error";
+type ReceiveType = "photos" | "files";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -27,11 +28,37 @@ function formatFileSize(bytes: number): string {
 export default function ReceivePage() {
   const [sessionState, setSessionState] = useState<SessionState>("loading");
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [receiveType, setReceiveType] = useState<ReceiveType>("photos");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [receivedFiles, setReceivedFiles] = useState<ReceivedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
+
   const wsRef = useRef<WebSocket | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+
+  const updateQR = useCallback(async (sid: string, type: ReceiveType) => {
+    try {
+      const sendUrl = `${window.location.origin}/send/${sid}?type=${type}`;
+      const qr = await QRCode.toDataURL(sendUrl, {
+        width: 320,
+        margin: 2,
+        color: { dark: "#000000", light: "#ffffff" },
+      });
+      setQrDataUrl(qr);
+    } catch {
+      // silent
+    }
+  }, []);
+
+  const handleTypeChange = useCallback(
+    (type: ReceiveType) => {
+      setReceiveType(type);
+      if (sessionId) {
+        void updateQR(sessionId, type);
+      }
+    },
+    [sessionId, updateQR],
+  );
 
   const pollSession = useCallback(async (sid: string) => {
     try {
@@ -54,6 +81,7 @@ export default function ReceivePage() {
       const response = await fetch(API_ENDPOINTS.RECEIVE_SESSION, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: receiveType }),
       });
 
       if (!response.ok) {
@@ -65,14 +93,7 @@ export default function ReceivePage() {
       setSessionId(sid);
       sessionIdRef.current = sid;
 
-      // Generate QR code pointing to the send page
-      const sendUrl = `${window.location.origin}/send/${sid}`;
-      const qr = await QRCode.toDataURL(sendUrl, {
-        width: 300,
-        margin: 2,
-        color: { dark: "#000000", light: "#ffffff" },
-      });
-      setQrDataUrl(qr);
+      await updateQR(sid, receiveType);
       setSessionState("ready");
 
       // Connect via WebSocket for real-time updates
@@ -106,7 +127,6 @@ export default function ReceivePage() {
       };
 
       ws.onclose = () => {
-        // Attempt reconnect after a short delay if session is still active
         setTimeout(() => {
           if (sessionIdRef.current === sid) {
             void pollSession(sid);
@@ -119,7 +139,7 @@ export default function ReceivePage() {
       );
       setSessionState("error");
     }
-  }, [pollSession]);
+  }, [pollSession, receiveType, updateQR]);
 
   useEffect(() => {
     void initSession();
@@ -133,7 +153,7 @@ export default function ReceivePage() {
     };
   }, [initSession]);
 
-  // Also poll every 5s as a fallback for WebSocket failures
+  // Poll fallback
   useEffect(() => {
     if (!sessionId) return;
     const interval = setInterval(() => {
@@ -145,21 +165,61 @@ export default function ReceivePage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4 sm:p-6 md:p-8">
       <div className="flex flex-col items-center gap-6 w-full max-w-2xl">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center leading-tight text-muted-foreground">
-          Receive Files
-        </h1>
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">
+            Receive Files &amp; Photos
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Generate a QR code for someone nearby to scan and send directly to your device
+          </p>
+        </div>
+
+        {/* Choice selector: What type of QR do you want? */}
+        <div className="flex flex-col items-center gap-2 w-full max-w-sm">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Choose QR Type
+          </label>
+          <div className="grid grid-cols-2 p-1 bg-muted rounded-xl w-full border border-border">
+            <button
+              type="button"
+              onClick={() => handleTypeChange("photos")}
+              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                receiveType === "photos"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span>📷</span> Photos Only
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTypeChange("files")}
+              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                receiveType === "files"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span>📁</span> Any Files
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
+            {receiveType === "photos"
+              ? "Scanner will directly open their Photo Gallery (Instagram-style)"
+              : "Scanner will open their File Manager for any documents or files"}
+          </p>
+        </div>
 
         {sessionState === "loading" && (
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-48 h-48 sm:w-56 sm:h-56 border-2 border-border rounded animate-pulse bg-muted" />
-            <p className="text-sm text-muted-foreground">
-              Creating receive session...
-            </p>
+          <div className="flex flex-col items-center gap-3 py-8">
+            <div className="w-52 h-52 sm:w-60 sm:h-60 border-2 border-border rounded-2xl animate-pulse bg-muted flex items-center justify-center">
+              <span className="text-xs text-muted-foreground">Generating QR code...</span>
+            </div>
           </div>
         )}
 
         {sessionState === "error" && (
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-4 py-8">
             <p className="text-destructive text-sm text-center">{error}</p>
             <Button onClick={initSession} size="lg">
               Try Again
@@ -170,16 +230,15 @@ export default function ReceivePage() {
         {sessionState === "ready" && qrDataUrl && (
           <>
             <div className="flex flex-col items-center gap-4">
-              <div className="p-3 bg-white rounded-lg border-2 border-border">
+              <div className="p-4 bg-white rounded-2xl border-2 border-border shadow-md">
                 <img
                   src={qrDataUrl}
-                  alt="Scan this QR code to send files"
-                  className="w-48 h-48 sm:w-56 sm:h-56"
+                  alt={`Scan to send ${receiveType === "photos" ? "photos" : "files"}`}
+                  className="w-52 h-52 sm:w-64 sm:h-64 rounded-lg"
                 />
               </div>
               <p className="text-sm text-muted-foreground text-center max-w-sm">
-                Show this QR code to anyone — they scan it, select files, and
-                the files land right here on your device.
+                Scan with any phone camera — {receiveType === "photos" ? "opens photo gallery" : "opens file picker"} immediately.
               </p>
             </div>
 
@@ -188,40 +247,69 @@ export default function ReceivePage() {
               {receivedFiles.length > 0 && (
                 <div className="border-t border-border pt-4">
                   <h2 className="text-lg sm:text-xl font-semibold mb-3">
-                    Received Files ({receivedFiles.length})
+                    Received {receiveType === "photos" ? "Photos" : "Files"} ({receivedFiles.length})
                   </h2>
                   <div className="space-y-2">
-                    {receivedFiles.map((file) => (
-                      <div
-                        key={file.id}
-                        className="flex items-center justify-between gap-3 border border-border rounded-lg p-3 sm:p-4 bg-card animate-in fade-in slide-in-from-bottom-2 duration-300"
-                      >
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-sm sm:text-base font-medium truncate">
-                            {file.name}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatFileSize(file.size)}
-                          </span>
+                    {receivedFiles.map((file) => {
+                      const isImage =
+                        file.mimeType?.startsWith("image/") ||
+                        /\.(jpe?g|png|gif|webp|heic|svg)$/i.test(file.name);
+                      return (
+                        <div
+                          key={file.id}
+                          className="flex items-center justify-between gap-3 border border-border rounded-xl p-3 sm:p-4 bg-card animate-in fade-in slide-in-from-bottom-2 duration-300"
+                        >
+                          {isImage ? (
+                            <img
+                              src={file.url}
+                              alt={file.name}
+                              className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover border border-border shrink-0 bg-muted"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0 text-muted-foreground">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                              </svg>
+                            </div>
+                          )}
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="text-sm sm:text-base font-medium truncate">
+                              {file.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatFileSize(file.size)}
+                            </span>
+                          </div>
+                          <Button asChild size="sm" variant="secondary">
+                            <a href={file.url} download={file.name}>
+                              Download
+                            </a>
+                          </Button>
                         </div>
-                        <Button asChild size="sm" variant="secondary">
-                          <a href={file.url} download={file.name}>
-                            Download
-                          </a>
-                        </Button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
               {receivedFiles.length === 0 && (
-                <div className="text-center py-8 border border-dashed border-border rounded-lg">
-                  <p className="text-muted-foreground text-sm">
-                    Waiting for files...
+                <div className="text-center py-8 border border-dashed border-border rounded-xl">
+                  <p className="text-muted-foreground text-sm font-medium">
+                    Waiting for {receiveType === "photos" ? "photos" : "files"}...
                   </p>
                   <p className="text-muted-foreground/60 text-xs mt-1">
-                    Files will appear here as soon as someone sends them
+                    Items will show up here the instant they are sent
                   </p>
                 </div>
               )}
@@ -231,7 +319,7 @@ export default function ReceivePage() {
 
         <a
           href="/"
-          className="text-primary hover:underline text-base sm:text-lg"
+          className="text-primary hover:underline text-sm sm:text-base mt-2"
         >
           ← Back to Home
         </a>
