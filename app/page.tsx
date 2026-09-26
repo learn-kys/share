@@ -53,11 +53,10 @@ export default function Home() {
 
   return (
     <div
-      className={`flex items-center justify-center min-h-screen p-4 sm:p-6 md:p-8 transition-colors ${
-        isDragging
+      className={`flex items-center justify-center min-h-screen p-4 sm:p-6 md:p-8 transition-colors ${isDragging
           ? "bg-muted/50 border-2 border-dashed border-primary"
           : "bg-background"
-      }`}
+        }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
