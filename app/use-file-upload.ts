@@ -6,6 +6,8 @@ import { API_ENDPOINTS } from "@/lib/config";
 
 const MAX_FILE_SIZE_MB = 500;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const MAX_BATCH_SIZE_MB = 500;
+const MAX_BATCH_SIZE_BYTES = MAX_BATCH_SIZE_MB * 1024 * 1024;
 const UPLOAD_PROGRESS_CAP = 92;
 const PROCESSING_PROGRESS_CAP = 98;
 
@@ -132,6 +134,15 @@ export function useFileUpload() {
       if (oversizedFile) {
         alert(
           `"${oversizedFile.name}" is larger than ${MAX_FILE_SIZE_MB} MB. Please choose a smaller file.`,
+        );
+        return;
+      }
+
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      if (totalSize > MAX_BATCH_SIZE_BYTES) {
+        const totalMB = (totalSize / (1024 * 1024)).toFixed(1);
+        alert(
+          `Total selected file size (${totalMB} MB) exceeds the ${MAX_BATCH_SIZE_MB} MB limit. Please remove some files and try again.`,
         );
         return;
       }
