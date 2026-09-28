@@ -1,6 +1,6 @@
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "https://aliceblue-rook-124259.hostingersite.com";
+  "https://share-backend-lpgx.onrender.com";
 
 export const WS_BASE_URL =
   process.env.NEXT_PUBLIC_WS_BASE_URL ||
